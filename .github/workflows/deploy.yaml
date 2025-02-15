@@ -1,26 +1,30 @@
-name: Deploy
+name: Deploy API
 
 on:
   push:
     branches:
       - main
-      
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      - name: Checkout Repository
         uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key.pem
+          chmod 600 ~/.ssh/ec2_key.pem
+
       - name: Deploy to EC2
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd fastapi-app
-            git stash
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/ec2_key.pem ubuntu@${{ secrets.EC2_PUBLIC_KEY }} << 'EOF'
+            cd /home/ubuntu/fastapi-book-project
             git pull origin main
             source venv/bin/activate
             pip install -r requirements.txt
             sudo systemctl restart fastapi
+          EOF
